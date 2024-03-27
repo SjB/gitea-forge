@@ -561,7 +561,7 @@
                                      (list .id))))
                                (cdr data))))
               (forge--gtea-put topic "repos/:owner/:repo/issues/:number/labels"
-                `((labels . ,ids))
+                `((labels . ,(or ids [])))
                 :callback cb))))))
 
 (cl-defmethod forge--set-topic-field
@@ -574,14 +574,14 @@
       `((,field . ,value))
       :callback cb)))
 
-;; TODO: How to remove milestones? (and assignee's)
 (cl-defmethod forge--set-topic-milestone ((repo forge-gitea-repository) topic milestone)
-  (forge--set-topic-field repo topic 'milestone (caar (forge-sql [:select [number]
-                                                                          :from milestone
-                                                                          :where (and (= repository $s1)
-                                                                                      (= title $s2))]
-                                                                 (oref repo id)
-                                                                 milestone))))
+  (forge--set-topic-field repo topic 'milestone (or (caar (forge-sql [:select [number]
+                                                                              :from milestone
+                                                                              :where (and (= repository $s1)
+                                                                                          (= title $s2))]
+                                                                     (oref repo id)
+                                                                     milestone))
+                                                    -1)))
 
 (cl-defmethod forge--set-topic-title ((repo forge-gitea-repository) topic title)
   (forge--set-topic-field repo topic 'title title))
@@ -602,7 +602,7 @@
   (forge-pull))
 
 (cl-defmethod forge--set-topic-assignees ((repo forge-gitea-repository) topic assignees)
-  (forge--set-topic-field repo topic 'assignees assignees))
+  (forge--set-topic-field repo topic 'assignees (or assignees [])))
 
 (defun forge--gitea-map-logins (logins)
   (mapcan (lambda (user)
