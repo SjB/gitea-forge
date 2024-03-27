@@ -274,18 +274,23 @@
         issue))))
 
 (cl-defmethod forge--pull-topic ((repo forge-gitea-repository)
-                                 (topic forge-topic))
+                                 (topic forge-topic)
+                                 &key callback _errorback)
   (condition-case _
       (let ((data (forge--gtea-get topic "repos/:owner/:repo/pulls/:number"))
             (cb (forge--gtea-fetch-topics-cb 'pullreqs repo
                                              (lambda (_ data)
-                                               (forge--update-pullreq repo (cadr data))))))
+                                               (forge--update-pullreq repo (cadr data))
+                                               (when callback
+                                                 (funcall callback))))))
         (funcall cb cb (list data)))
     (error
      (let ((data (forge--gtea-get topic "repos/:owner/:repo/issues/:number"))
            (cb (forge--gtea-fetch-topics-cb 'issues repo
                                             (lambda (_ data)
-                                              (forge--update-issue repo (cadr data))))))
+                                              (forge--update-issue repo (cadr data))
+                                              (when callback
+                                                 (funcall callback))))))
        (funcall cb cb (list data))))))
 
 ;;;; Pull requests
