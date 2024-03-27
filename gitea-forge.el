@@ -551,7 +551,7 @@
   (magit-refresh))
 
 (cl-defmethod forge--set-topic-labels ((repo forge-gitea-repository) topic labels)
-  (let ((callback (forge--set-field-callback)))
+  (let ((cb (forge--set-field-callback topic)))
     (forge--fetch-labels
      repo (lambda (_cb data)
             (let ((ids (mapcan (lambda (label)
@@ -561,17 +561,19 @@
                                (cdr data))))
               (forge--gtea-put topic "repos/:owner/:repo/issues/:number/labels"
                 `((labels . ,ids))
-                :callback callback))))))
+                :callback cb))))))
 
 (cl-defmethod forge--set-topic-field
   ((_repo forge-gitea-repository) topic field value)
-  (forge--gtea-patch topic
-    (cl-typecase topic
-      (forge-pullreq "repos/:owner/:repo/pulls/:number")
-      (forge-issue   "repos/:owner/:repo/issues/:number"))
-    `((,field . ,value))
-    :callback (forge--set-field-callback)))
+  (let ((cb (forge--set-field-callback topic)))
+    (forge--gtea-patch topic
+      (cl-typecase topic
+        (forge-pullreq "repos/:owner/:repo/pulls/:number")
+        (forge-issue   "repos/:owner/:repo/issues/:number"))
+      `((,field . ,value))
+      :callback cb)))
 
+;; TODO: How to remove milestones? (and assignee's)
 (cl-defmethod forge--set-topic-milestone ((repo forge-gitea-repository) topic milestone)
   (forge--set-topic-field repo topic 'milestone (caar (forge-sql [:select [number]
                                                                           :from milestone
@@ -596,7 +598,6 @@
     (when-let ((remove (cl-set-difference value reviewers :test #'equal)))
       (forge--gtea-delete topic "repos/:owner/:repo/pulls/:number/requested_reviewers"
         `((reviewers . ,remove)))))
-  ;; (oset topic review-requests (forge--gitea-map-logins reviewers))
   (forge-pull))
 
 (cl-defmethod forge--set-topic-assignees ((repo forge-gitea-repository) topic assignees)
