@@ -359,8 +359,9 @@
         (forge--set-id-slot repo pullreq 'assignees .assignees)
 
         (forge--set-id-slot repo pullreq 'review-requests
-                            (mapcar (lambda (review)
-                                      (alist-get 'user review))
+                            (mapcan (lambda (review)
+                                      (when (string= "REQUEST_REVIEW" (alist-get 'state review))
+                                        (list (alist-get 'user review))))
                                     .reviews))
         (let ((reviews (mapcan (lambda (review)
                                  (unless (string-empty-p (alist-get 'body review))
