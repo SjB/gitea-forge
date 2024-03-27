@@ -218,7 +218,8 @@
                   (setf (alist-get 'notes (car cur)) value)
                   (funcall cb cb)))))
 
-(cl-defmethod forge--update-issue ((repo forge-gitea-repository) data)
+(cl-defmethod forge--update-issue ((repo forge-gitea-repository) data
+&optional bump initial-pull)
   (closql-with-transaction (forge-db)
     (let-alist data
       (let* ((issue-id (forge--object-id 'forge-issue repo .id))
@@ -274,8 +275,7 @@
         issue))))
 
 (cl-defmethod forge--pull-topic ((repo forge-gitea-repository)
-                                 (topic forge-topic)
-                                 &key callback _errorback)
+                                 (topic forge-topic) &key callback errorback)
   (condition-case _
       (let ((data (forge--gtea-get topic "repos/:owner/:repo/pulls/:number"))
             (cb (forge--gtea-fetch-topics-cb 'pullreqs repo
@@ -318,7 +318,8 @@
                   (setf (alist-get 'notes (car cur)) value)
                   (funcall cb cb)))))
 
-(cl-defmethod forge--update-pullreq ((repo forge-gitea-repository) data)
+(cl-defmethod forge--update-pullreq ((repo forge-gitea-repository) data
+&optional bump initial-pull)
   (closql-with-transaction (forge-db)
     (let-alist data
       (let* ((pullreq-id (forge--object-id 'forge-pullreq repo .number))
@@ -552,7 +553,7 @@
   (magit-refresh))
 
 (cl-defmethod forge--set-topic-labels ((repo forge-gitea-repository) topic labels)
-  (let ((cb (forge--set-field-callback topic)))
+  (let ((callback (forge--set-field-callback topic)))
     (forge--fetch-labels
      repo (lambda (_cb data)
             (let ((ids (mapcan (lambda (label)
@@ -566,13 +567,12 @@
 
 (cl-defmethod forge--set-topic-field
   ((_repo forge-gitea-repository) topic field value)
-  (let ((cb (forge--set-field-callback topic)))
-    (forge--gtea-patch topic
-      (cl-typecase topic
-        (forge-pullreq "repos/:owner/:repo/pulls/:number")
-        (forge-issue   "repos/:owner/:repo/issues/:number"))
-      `((,field . ,value))
-      :callback cb)))
+  (forge--gtea-patch topic
+    (cl-typecase topic
+      (forge-pullreq "repos/:owner/:repo/pulls/:number")
+      (forge-issue   "repos/:owner/:repo/issues/:number"))
+    `((,field . ,value))
+    :callback (forge--set-field-callback topic)))
 
 (cl-defmethod forge--set-topic-milestone ((repo forge-gitea-repository) topic milestone)
   (forge--set-topic-field repo topic 'milestone (or (caar (forge-sql [:select [number]
@@ -728,9 +728,9 @@ is met."
                        (progn
                          ;; Set next page to params:
                          (setq params
-	                       (if-let ((pair (assoc 'page params)))
-	                           (progn (setcdr pair page) params)
-	                         (cons `(page . ,page) params)))
+                               (if-let ((pair (assoc 'page params)))
+                                   (progn (setcdr pair page) params)
+                                 (cons `(page . ,page) params)))
                          (forge--msg nil nil nil "Fetch page %s" page)
                          (funcall cb cb))
                      (forge--msg nil nil t "Fetch pages")
