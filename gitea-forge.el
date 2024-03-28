@@ -553,17 +553,16 @@
   (magit-refresh))
 
 (cl-defmethod forge--set-topic-labels ((repo forge-gitea-repository) topic labels)
-  (let ((callback (forge--set-field-callback topic)))
-    (forge--fetch-labels
-     repo (lambda (_cb data)
-            (let ((ids (mapcan (lambda (label)
-                                 (let-alist label
-                                   (when (member .name labels)
-                                     (list .id))))
-                               (cdr data))))
-              (forge--gtea-put topic "repos/:owner/:repo/issues/:number/labels"
-                `((labels . ,(or ids [])))
-                :callback cb))))))
+  (forge--fetch-labels
+   repo (lambda (_cb data)
+          (let ((ids (mapcan (lambda (label)
+                               (let-alist label
+                                 (when (member .name labels)
+                                   (list .id))))
+                             (cdr data))))
+            (forge--gtea-put topic "repos/:owner/:repo/issues/:number/labels"
+              `((labels . ,(or ids [])))
+              :callback (forge--set-field-callback topic))))))
 
 (cl-defmethod forge--set-topic-field
   ((_repo forge-gitea-repository) topic field value)
